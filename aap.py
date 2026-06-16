@@ -3,6 +3,8 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import textwrap
+from io import BytesIO
+from xhtml2pdf import pisa
 
 # Page Configuration
 st.set_page_config(page_title="Hotel Royale Paradise Billing", page_icon="🏨", layout="centered")
@@ -51,6 +53,14 @@ def get_next_bill_no():
 
 init_db()
 
+# --- PDF GENERATOR HELPER ---
+def generate_pdf(html_content):
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(BytesIO(html_content.encode("utf-8")), dest=pdf_buffer)
+    if pisa_status.err:
+        return None
+    return pdf_buffer.getvalue()
+
 # --- APP INTERFACE ---
 st.title("🏨 Hotel Royale Paradise")
 st.subheader("Cloud-Based GST Billing Engine")
@@ -58,7 +68,7 @@ st.subheader("Cloud-Based GST Billing Engine")
 tab1, tab2 = st.tabs(["🆕 New Invoice", "📊 GST Reports & History"])
 
 with tab1:
-    st.info("Fill guest details below to generate a print-ready pink format invoice.")
+    st.info("Fill guest details below to generate a print-ready PDF invoice.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -81,7 +91,7 @@ with tab1:
     sgst = total_taxable * 0.025
     grand_total = total_taxable + cgst + sgst
 
-    if st.button("Generate & Print Bill"):
+    if st.button("Generate Bill"):
         if not customer_name or not room_no:
             st.error("Please fill required fields (Guest Name & Room No.)")
         else:
@@ -92,33 +102,53 @@ with tab1:
                        no_of_person, check_in, check_out, days, rate, total_taxable, cgst, sgst, grand_total)
             save_invoice(db_data)
             
-            st.success(f"Invoice {bill_no} successfully stored in database!")
+            st.success(f"Invoice {bill_no} successfully stored in database! Click below to download PDF.")
 
-            # textwrap.dedent removes the extra spaces that were causing the black code block issue
             raw_html = f"""
-            <div style="background-color: #fff0f5; padding: 25px; border: 2px solid #d6336c; font-family: 'Arial', sans-serif; color: #2d3748; border-radius: 5px;">
-                <table style="width: 100%; border-collapse: collapse;">
+            <html>
+            <head>
+            <style>
+                body {{ font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #333; }}
+                .container {{ padding: 20px; border: 2px solid #d6336c; background-color: #fff0f5; }}
+                .header-table {{ width: 100%; font-size: 10px; margin-bottom: 10px; }}
+                .title-section {{ text-align: center; margin-bottom: 15px; }}
+                .main-title {{ color: #d6336c; font-size: 24px; font-weight: bold; font-style: italic; margin: 5px 0; }}
+                .info-table {{ width: 100%; margin-bottom: 15px; border: none; }}
+                .item-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                .item-table th {{ background-color: #d6336c; color: white; padding: 6px; border: 1px solid #d6336c; text-align: left; }}
+                .item-table td {{ padding: 6px; border: 1px solid #d6336c; }}
+                .text-right {{ text-align: right; }}
+                .text-center {{ text-align: center; }}
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <table class="header-table">
                     <tr>
-                        <td style="font-size: 11px;"><strong>CIN :</strong> U54132UP1999PTC024452</td>
-                        <td style="text-align: right; font-size: 11px;"><strong>GSTIN :</strong> 09AADCA6394B2ZP</td>
+                        <td><strong>CIN :</strong> U54132UP1999PTC024452</td>
+                        <td class="text-right"><strong>GSTIN :</strong> 09AADCA6394B2ZP</td>
                     </tr>
                 </table>
-                <div style="text-align: center; margin-top: 5px;">
-                    <span style="font-size: 14px; letter-spacing: 2px; font-weight: bold; border-bottom: 1px solid black;">BILL</span>
-                    <h1 style="color: #d6336c; font-style: italic; margin: 5px 0 2px 0; font-size: 26px;">Hotel Royale Paradise</h1>
-                    <p style="font-size: 11px; margin: 0; font-weight: bold;">(A Unit of Akhand Enterprises (P) Ltd.)</p>
-                    <p style="font-size: 10px; margin: 2px 0;">Regd. Off. : Kishori Kunj, 105-B, Gaushala Road, New Mandi, Muzaffarnagar (U.P.)</p>
-                    <p style="font-size: 11px; margin: 0; font-weight: bold; background-color: rgba(214,51,108,0.1); padding: 3px;">Y-349 C, Sector-12, NOIDA-201301 (U.P.) Ph. : 91-120-2536460, 2533391, 9818675476</p>
+                
+                <div class="title-section">
+                    <div style="font-size: 14px; font-weight: bold; text-decoration: underline; letter-spacing: 2px;">BILL</div>
+                    <div class="main-title">Hotel Royale Paradise</div>
+                    <div style="font-size: 10px; font-weight: bold;">(A Unit of Akhand Enterprises (P) Ltd.)</div>
+                    <div style="font-size: 9px;">Regd. Off. : Kishori Kunj, 105-B, Gaushala Road, New Mandi, Muzaffarnagar (U.P.)</div>
+                    <div style="font-size: 10px; font-weight: bold; background-color: #f8d7e3; padding: 3px; margin-top: 4px;">
+                        Y-349 C, Sector-12, NOIDA-201301 (U.P.) Ph. : 91-120-2536460, 2533391, 9818675476
+                    </div>
                 </div>
-                <hr style="border: 0; border-top: 1px solid #d6336c; margin: 15px 0;">
-                <table style="width: 100%; font-size: 12px; margin-bottom: 15px;">
+                <hr color="#d6336c" size="1">
+                
+                <table class="info-table">
                     <tr>
-                        <td style="width: 55%; line-height: 1.6;">
+                        <td width="55%" valign="top">
                             <strong>GUEST DETAILS:</strong><br>
                             Name: {customer_name}<br>
                             GSTIN: {customer_gstin if customer_gstin else 'N/A'}
                         </td>
-                        <td style="width: 45%; line-height: 1.6; border-left: 1px dashed #d6336c; padding-left: 15px;">
+                        <td width="45%" valign="top">
                             <strong>BILL NO. : {bill_no}</strong><br>
                             BILL DATE : {bill_date}<br>
                             ROOM NO. : {room_no}<br>
@@ -126,60 +156,74 @@ with tab1:
                         </td>
                     </tr>
                 </table>
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
-                    <thead>
-                        <tr style="background-color: #d6336c; color: white;">
-                            <th style="border: 1px solid #d6336c; padding: 8px; text-align: left;">PARTICULARS</th>
-                            <th style="border: 1px solid #d6336c; padding: 8px; text-align: center; width: 20%;">RATE (₹)</th>
-                            <th style="border: 1px solid #d6336c; padding: 8px; text-align: right; width: 20%;">AMOUNT (₹)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="height: 120px;">
-                            <td style="border: 1px solid #d6336c; padding: 8px; vertical-align: top;">
-                                <strong>Lodging Charges for {days} days</strong><br>
-                                <span style="font-size: 11px; color: #555;">From: {check_in}<br>To: {check_out}</span>
-                            </td>
-                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: center; vertical-align: top;">{rate:.2f}</td>
-                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: right; vertical-align: top;">{total_taxable:.2f}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" style="border: 1px solid #d6336c; padding: 6px; text-align: right; font-weight: bold;">TOTAL</td>
-                            <td style="border: 1px solid #d6336c; padding: 6px; text-align: right; font-weight: bold;">{total_taxable:.2f}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" style="border: 1px solid #d6336c; padding: 4px; text-align: right;">CGST (2.5%)</td>
-                            <td style="border: 1px solid #d6336c; padding: 4px; text-align: right;">{cgst:.2f}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" style="border: 1px solid #d6336c; padding: 4px; text-align: right;">SGST (2.5%)</td>
-                            <td style="border: 1px solid #d6336c; padding: 4px; text-align: right;">{sgst:.2f}</td>
-                        </tr>
-                        <tr style="background-color: rgba(214,51,108,0.1);">
-                            <td colspan="2" style="border: 1px solid #d6336c; padding: 8px; text-align: right; font-weight: bold; font-size: 13px;">GRAND TOTAL</td>
-                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: right; font-weight: bold; font-size: 13px; color: #d6336c;">₹ {grand_total:.2f}</td>
-                        </tr>
-                    </tbody>
+
+                <table class="item-table">
+                    <tr>
+                        <th width="60%">PARTICULARS</th>
+                        <th width="20%" class="text-center">RATE (₹)</th>
+                        <th width="20%" class="text-right">AMOUNT (₹)</th>
+                    </tr>
+                    <tr>
+                        <td valign="top" height="100">
+                            <strong>Lodging Charges for {days} days</strong><br>
+                            <span style="font-size: 10px; color: #555;">From: {check_in}<br>To: {check_out}</span>
+                        </td>
+                        <td valign="top" class="text-center">{rate:.2f}</td>
+                        <td valign="top" class="text-right">{total_taxable:.2f}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="text-right"><strong>TOTAL</strong></td>
+                        <td class="text-right"><strong>{total_taxable:.2f}</strong></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="text-right">CGST (2.5%)</td>
+                        <td class="text-right">{cgst:.2f}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="text-right">SGST (2.5%)</td>
+                        <td class="text-right">{sgst:.2f}</td>
+                    </tr>
+                    <tr style="background-color: #f8d7e3;">
+                        <td colspan="2" class="text-right" style="font-weight: bold; font-size: 13px;">GRAND TOTAL</td>
+                        <td class="text-right" style="font-weight: bold; font-size: 13px; color: #d6336c;">₹ {grand_total:.2f}</td>
+                    </tr>
                 </table>
-                <div style="font-size: 11px; margin-top: 15px; border-left: 2px solid #d6336c; padding-left: 10px;">
+
+                <div style="font-size: 10px; margin-top: 20px;">
                     <strong>TERMS & CONDITIONS :</strong><br>
                     1. Check out Time 12:00 Noon<br>
                     2. Subject to Muzaffarnagar Jurisdiction Only<br>
                     E. & O.E.
                 </div>
-                <table style="width: 100%; margin-top: 40px; font-size: 12px;">
+
+                <table width="100%" style="margin-top: 40px;">
                     <tr>
-                        <td style="width: 50%; vertical-align: bottom;">Guest Signature</td>
-                        <td style="width: 50%; text-align: right; line-height: 1.5;">
+                        <td width="50%" valign="bottom">Guest Signature</td>
+                        <td width="50%" class="text-right">
                             For <strong>Hotel Royale Paradise</strong><br><br><br>
                             Auth. Signatory
                         </td>
                     </tr>
                 </table>
             </div>
+            </body>
+            </html>
             """
+            
             clean_html = textwrap.dedent(raw_html)
+            
+            # Print to screen for preview
             st.markdown(clean_html, unsafe_allow_html=True)
+            
+            # Generate PDF and show Download Button
+            pdf_bytes = generate_pdf(clean_html)
+            if pdf_bytes:
+                st.download_button(
+                    label="📥 Download PDF Bill",
+                    data=pdf_bytes,
+                    file_name=f"Hotel_Royal_Paradise_Invoice_{bill_no}.pdf",
+                    mime="application/pdf"
+                )
 
 with tab2:
     st.subheader("Database History")
@@ -191,7 +235,7 @@ with tab2:
         st.dataframe(df)
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Export Monthly GST Ledger (CSV/Excel)",
+            label="📥 Export Monthly GST Ledger for CA (Excel/CSV)",
             data=csv,
             file_name=f"GST_Report_{datetime.now().strftime('%m_%Y')}.csv",
             mime='text/csv',
