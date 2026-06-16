@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
+from datetime import datetime, time
 from io import BytesIO
 from xhtml2pdf import pisa
 import streamlit.components.v1 as components
@@ -92,19 +92,38 @@ tab1, tab2 = st.tabs(["🧾 Generate Invoice (2026 Format)", "📊 Monthly GST R
 
 with tab1:
     with st.container():
+        # --- SECTION 1: GUEST DETAILS ---
+        st.markdown("<h5 style='color: #800020; margin-bottom: 15px;'>👤 Guest & Room Details</h5>", unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             customer_name = st.text_input("Guest Name *", placeholder="e.g. Rahul Sharma")
-            room_no = st.text_input("Room No. *", placeholder="e.g. 302")
         with col2:
             customer_gstin = st.text_input("Guest GSTIN", placeholder="Optional for B2B")
-            no_of_person = st.number_input("No. Of Persons", min_value=1, value=1)
         with col3:
-            check_in = st.text_input("Check-In (Date & Time)", value=datetime.now().strftime("%d-%m-%Y 12:00 PM"))
-            rate = st.number_input("Room Rate per Day (Rs.) *", min_value=0.0, value=2500.0)
+            room_no = st.text_input("Room No. *", placeholder="e.g. 302")
         with col4:
-            check_out = st.text_input("Check-Out (Date & Time)", value=datetime.now().strftime("%d-%m-%Y 11:00 AM"))
+            no_of_person = st.number_input("No. Of Persons", min_value=1, value=1)
+
+        st.markdown("<hr style='border-top: 1px dashed #ccc; margin: 15px 0;'>", unsafe_allow_html=True)
+
+        # --- SECTION 2: STAY DETAILS (WITH CALENDAR & TIME PICKER) ---
+        st.markdown("<h5 style='color: #800020; margin-bottom: 15px;'>🗓️ Stay & Billing Details</h5>", unsafe_allow_html=True)
+        col5, col6, col7, col8 = st.columns(4)
+        with col5:
+            ci_date = st.date_input("Check-In Date", value=datetime.today())
+            ci_time = st.time_input("Check-In Time", value=time(12, 0)) # Default 12:00 PM
+        with col6:
+            co_date = st.date_input("Check-Out Date", value=datetime.today())
+            co_time = st.time_input("Check-Out Time", value=time(11, 0)) # Default 11:00 AM
+        with col7:
+            rate = st.number_input("Room Rate per Day (Rs.) *", min_value=0.0, value=2500.0)
+            st.markdown("<br>", unsafe_allow_html=True) # Spacing adjustment
+        with col8:
             days = st.number_input("Total Days *", min_value=1, value=1)
+
+    # Combining selected Date and Time into a single string for DB & PDF
+    check_in = f"{ci_date.strftime('%d-%m-%Y')} {ci_time.strftime('%I:%M %p')}"
+    check_out = f"{co_date.strftime('%d-%m-%Y')} {co_time.strftime('%I:%M %p')}"
 
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -113,6 +132,7 @@ with tab1:
     sgst = total_taxable * 0.025
     grand_total = total_taxable + cgst + sgst
 
+    # Generate Button
     col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
     with col_btn2:
         generate_btn = st.button("🚀 Generate Final Tax Invoice", type="primary", use_container_width=True)
