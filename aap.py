@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime
-import base64
+import textwrap
 
-# Page Configuration & Theme Styling
+# Page Configuration
 st.set_page_config(page_title="Hotel Royale Paradise Billing", page_icon="🏨", layout="centered")
 
 # --- DATABASE MANAGEMENT ---
@@ -60,7 +60,6 @@ tab1, tab2 = st.tabs(["🆕 New Invoice", "📊 GST Reports & History"])
 with tab1:
     st.info("Fill guest details below to generate a print-ready pink format invoice.")
     
-    # Form Inputs
     col1, col2 = st.columns(2)
     with col1:
         customer_name = st.text_input("Guest Name *")
@@ -77,7 +76,6 @@ with tab1:
     with col4:
         days = st.number_input("Total Days *", min_value=1, value=1)
 
-    # Calculation logic
     total_taxable = rate * days
     cgst = total_taxable * 0.025
     sgst = total_taxable * 0.025
@@ -90,15 +88,14 @@ with tab1:
             bill_no = get_next_bill_no()
             bill_date = datetime.now().strftime("%d-%m-%Y")
             
-            # Save to Cloud DB
             db_data = (bill_no, bill_date, customer_name, customer_gstin, room_no, 
                        no_of_person, check_in, check_out, days, rate, total_taxable, cgst, sgst, grand_total)
             save_invoice(db_data)
             
             st.success(f"Invoice {bill_no} successfully stored in database!")
 
-            # Raw HTML layout replicating your exact Pink Invoice Slip ('image.png')
-            html_invoice = f"""
+            # textwrap.dedent removes the extra spaces that were causing the black code block issue
+            raw_html = f"""
             <div style="background-color: #fff0f5; padding: 25px; border: 2px solid #d6336c; font-family: 'Arial', sans-serif; color: #2d3748; border-radius: 5px;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
@@ -113,9 +110,7 @@ with tab1:
                     <p style="font-size: 10px; margin: 2px 0;">Regd. Off. : Kishori Kunj, 105-B, Gaushala Road, New Mandi, Muzaffarnagar (U.P.)</p>
                     <p style="font-size: 11px; margin: 0; font-weight: bold; background-color: rgba(214,51,108,0.1); padding: 3px;">Y-349 C, Sector-12, NOIDA-201301 (U.P.) Ph. : 91-120-2536460, 2533391, 9818675476</p>
                 </div>
-                
                 <hr style="border: 0; border-top: 1px solid #d6336c; margin: 15px 0;">
-
                 <table style="width: 100%; font-size: 12px; margin-bottom: 15px;">
                     <tr>
                         <td style="width: 55%; line-height: 1.6;">
@@ -131,7 +126,6 @@ with tab1:
                         </td>
                     </tr>
                 </table>
-
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
                     <thead>
                         <tr style="background-color: #d6336c; color: white;">
@@ -142,12 +136,12 @@ with tab1:
                     </thead>
                     <tbody>
                         <tr style="height: 120px;">
-                            <td style="border: 1px solid #d6336c; padding: 8px;">
+                            <td style="border: 1px solid #d6336c; padding: 8px; vertical-align: top;">
                                 <strong>Lodging Charges for {days} days</strong><br>
                                 <span style="font-size: 11px; color: #555;">From: {check_in}<br>To: {check_out}</span>
                             </td>
-                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: center;">{rate:.2f}</td>
-                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: right;">{total_taxable:.2f}</td>
+                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: center; vertical-align: top;">{rate:.2f}</td>
+                            <td style="border: 1px solid #d6336c; padding: 8px; text-align: right; vertical-align: top;">{total_taxable:.2f}</td>
                         </tr>
                         <tr>
                             <td colspan="2" style="border: 1px solid #d6336c; padding: 6px; text-align: right; font-weight: bold;">TOTAL</td>
@@ -167,14 +161,12 @@ with tab1:
                         </tr>
                     </tbody>
                 </table>
-
                 <div style="font-size: 11px; margin-top: 15px; border-left: 2px solid #d6336c; padding-left: 10px;">
                     <strong>TERMS & CONDITIONS :</strong><br>
                     1. Check out Time 12:00 Noon<br>
                     2. Subject to Muzaffarnagar Jurisdiction Only<br>
                     E. & O.E.
                 </div>
-
                 <table style="width: 100%; margin-top: 40px; font-size: 12px;">
                     <tr>
                         <td style="width: 50%; vertical-align: bottom;">Guest Signature</td>
@@ -186,10 +178,8 @@ with tab1:
                 </table>
             </div>
             """
-            st.markdown(html_invoice, unsafe_allow_html=True)
-            
-            # Simple Window Print trigger
-            st.markdown("<script>window.print();</script>", unsafe_allow_html=True)
+            clean_html = textwrap.dedent(raw_html)
+            st.markdown(clean_html, unsafe_allow_html=True)
 
 with tab2:
     st.subheader("Database History")
@@ -199,8 +189,6 @@ with tab2:
     
     if not df.empty:
         st.dataframe(df)
-        
-        # GSTR Excel Generation for CA
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Export Monthly GST Ledger (CSV/Excel)",
